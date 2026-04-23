@@ -10,6 +10,7 @@ import onboardingRoutes from './routes/onboarding.routes';
 import kycRoutes from './routes/kyc.routes';
 import adminRoutes from './routes/admin.routes';
 import systemRoutes from './routes/system.routes';
+import campaignRoutes from './routes/campaign.routes';
 import { ApiError } from './utils/apiResponse';
 
 const app = express();
@@ -57,6 +58,7 @@ app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/kyc', kycRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/campaigns', campaignRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req: Request, res: Response) => {
