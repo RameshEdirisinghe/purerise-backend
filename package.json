@@ -1,0 +1,48 @@
+{
+  "name": "purerise-backend",
+  "version": "1.0.0",
+  "description": "PureRaise decentralised crowdfunding platform — backend API",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec \"ts-node src/server.ts\"",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "crowdfunding",
+    "purerise",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.104.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^7.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.4.1",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.5",
+    "uuid": "^11.1.0",
+    "zod": "^3.25.20"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.7",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.6.0",
+    "@types/nodemailer": "^8.0.0",
+    "@types/uuid": "^10.0.0",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}
