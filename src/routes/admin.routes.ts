@@ -14,6 +14,7 @@ router.use(requireRole('admin'));
  * @desc Get all pending campaign owner requests
  */
 router.get('/requests', getPendingRequests);
+router.post('/requests/:requestId/review', reviewRequest);
 router.get('/signed-url', getSignedFileUrl);
 
 /**
