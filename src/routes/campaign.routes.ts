@@ -6,7 +6,8 @@ import {
   uploadCampaignMediaController,
   getPendingCampaigns,
   reviewCampaign,
-  getActiveCampaigns
+  getActiveCampaigns,
+  getCampaignById
 } from '../controllers/campaign.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
@@ -83,5 +84,6 @@ router.patch(
  * @access Public (authenticated)
  */
 router.get('/active', getActiveCampaigns);
+router.get('/:campaignId', getCampaignById);
 
 export default router;

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import Campaign from '../models/Campaign';
 import User from '../models/user.model';
 import { ApiResponse, ApiError } from '../utils/apiResponse';
@@ -190,6 +191,7 @@ export const getCampaignsByOwnerId = async (
       const campaignObj = c.toObject();
       return {
         ...campaignObj,
+        id: campaignObj._id.toString(),
         coverImage: await getSignedUrl('campaign-media', campaignObj.coverImage)
       };
     }));
@@ -220,6 +222,7 @@ export const getPendingCampaigns = async (
       const campaignObj = c.toObject();
       return {
         ...campaignObj,
+        id: campaignObj._id.toString(),
         coverImage: await getSignedUrl('campaign-media', campaignObj.coverImage)
       };
     }));
@@ -308,12 +311,66 @@ export const getActiveCampaigns = async (
       const campaignObj = c.toObject();
       return {
         ...campaignObj,
+        id: campaignObj._id.toString(),
         coverImage: await getSignedUrl('campaign-media', campaignObj.coverImage)
       };
     }));
 
     res.status(200).json(
       new ApiResponse(200, 'Active campaigns fetched successfully', formattedCampaigns)
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get a single campaign by ID with signed URL for cover image
+ */
+export const getCampaignById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { campaignId } = req.params;
+
+    if (!campaignId || campaignId === 'undefined') {
+      throw new ApiError(400, 'Invalid campaign ID provided');
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(campaignId as string)) {
+      throw new ApiError(400, 'Invalid campaign ID format');
+    }
+
+    const campaign = await Campaign.findById(campaignId).populate('ownerId', 'name email profileImage');
+    
+    if (!campaign) {
+      throw new ApiError(404, 'Campaign not found');
+    }
+
+    const campaignObj = campaign.toObject();
+    
+    // Generate signed URLs
+    const [coverImageUrl, ownerImageUrl] = await Promise.all([
+      getSignedUrl('campaign-media', campaignObj.coverImage),
+      campaignObj.ownerId && (campaignObj.ownerId as any).profileImage 
+        ? getSignedUrl('kyc-documents', (campaignObj.ownerId as any).profileImage) // Assuming profile images might be in kyc or a separate bucket
+        : Promise.resolve(null)
+    ]);
+
+    const formattedCampaign = {
+      ...campaignObj,
+      id: campaignObj._id.toString(),
+      coverImage: coverImageUrl,
+      owner: campaignObj.ownerId ? {
+        ...(campaignObj.ownerId as any),
+        profileImage: ownerImageUrl
+      } : null
+    };
+
+    res.status(200).json(
+      new ApiResponse(200, 'Campaign fetched successfully', formattedCampaign)
     );
   } catch (error) {
     next(error);
