@@ -154,7 +154,7 @@ export const getMyCampaigns = async (
       title: c.title,
       summary: c.summary,
       category: c.category,
-      coverImage: await getSignedUrl('campaign-media', c.coverImage),
+      coverImage: await getSignedUrl('kyc-documents', c.coverImage),
       targetFunding: c.targetFunding,
       status: c.status,
       createdAt: c.createdAt,
@@ -192,7 +192,7 @@ export const getCampaignsByOwnerId = async (
       return {
         ...campaignObj,
         id: campaignObj._id.toString(),
-        coverImage: await getSignedUrl('campaign-media', campaignObj.coverImage)
+        coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage)
       };
     }));
 
@@ -223,7 +223,7 @@ export const getPendingCampaigns = async (
       return {
         ...campaignObj,
         id: campaignObj._id.toString(),
-        coverImage: await getSignedUrl('campaign-media', campaignObj.coverImage)
+        coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage)
       };
     }));
 
@@ -312,7 +312,7 @@ export const getActiveCampaigns = async (
       return {
         ...campaignObj,
         id: campaignObj._id.toString(),
-        coverImage: await getSignedUrl('campaign-media', campaignObj.coverImage)
+        coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage)
       };
     }));
 
@@ -353,7 +353,7 @@ export const getCampaignById = async (
     
     // Generate signed URLs
     const [coverImageUrl, ownerImageUrl] = await Promise.all([
-      getSignedUrl('campaign-media', campaignObj.coverImage),
+      getSignedUrl('kyc-documents', campaignObj.coverImage),
       campaignObj.ownerId && (campaignObj.ownerId as any).profileImage 
         ? getSignedUrl('kyc-documents', (campaignObj.ownerId as any).profileImage) // Assuming profile images might be in kyc or a separate bucket
         : Promise.resolve(null)
@@ -363,11 +363,15 @@ export const getCampaignById = async (
       ...campaignObj,
       id: campaignObj._id.toString(),
       coverImage: coverImageUrl,
-      owner: campaignObj.ownerId ? {
-        ...(campaignObj.ownerId as any),
+      owner: campaign.ownerId ? {
+        name: (campaign.ownerId as any).name,
+        email: (campaign.ownerId as any).email,
         profileImage: ownerImageUrl
       } : null
     };
+
+    // Remove the internal ownerId to avoid confusion on frontend
+    delete (formattedCampaign as any).ownerId;
 
     res.status(200).json(
       new ApiResponse(200, 'Campaign fetched successfully', formattedCampaign)

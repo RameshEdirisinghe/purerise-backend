@@ -4,6 +4,7 @@ import { setTokenCookies, clearTokenCookies } from '../utils/generateTokens';
 import { verifyRefreshToken } from '../services/token.service';
 import { ApiResponse, ApiError } from '../utils/apiResponse';
 import { registerSchema, loginSchema } from '../utils/validators';
+import { uploadImage, getSignedUrl } from '../utils/uploadImage';
 import { ZodError } from 'zod';
 
 // ─────────────────────────────────────────────
@@ -147,6 +148,11 @@ export const login = async (
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
+    // Profile Image
+    const profileImageUrl = user.profileImage 
+      ? await getSignedUrl('kyc-documents', user.profileImage)
+      : null;
+
     res.status(200).json(
       new ApiResponse(200, 'Login successful', {
         user: {
@@ -154,6 +160,7 @@ export const login = async (
           name: user.name,
           email: user.email,
           role: user.role,
+          profileImage: profileImageUrl
         },
         redirectTo: user.role === 'admin'
           ? '/admin/dashboard'
@@ -200,12 +207,18 @@ export const refresh = async (
     user.refreshToken = newRefreshToken;
     await user.save({ validateBeforeSave: false });
 
+    // Profile Image
+    const profileImageUrl = user.profileImage 
+      ? await getSignedUrl('kyc-documents', user.profileImage)
+      : null;
+
     res.status(200).json(new ApiResponse(200, 'Token refreshed', {
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
+        profileImage: profileImageUrl
       },
     }));
   } catch (error) {
@@ -253,6 +266,10 @@ export const getMe = async (
       throw new ApiError(404, 'User not found');
     }
 
+    const profileImageUrl = user.profileImage 
+      ? await getSignedUrl('kyc-documents', user.profileImage)
+      : null;
+
     res.status(200).json(
       new ApiResponse(200, 'User fetched', {
         user: {
@@ -260,9 +277,76 @@ export const getMe = async (
           name: user.name,
           email: user.email,
           role: user.role,
+          profileImage: profileImageUrl,
           createdAt: user.createdAt,
         },
       })
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────
+// PATCH /api/auth/profile
+// ─────────────────────────────────────────────
+export const updateProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { name, profileImage } = req.body;
+    const user = await User.findById(req.user?.userId);
+
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    if (name) user.name = name;
+    if (profileImage) user.profileImage = profileImage;
+
+    await user.save({ validateBeforeSave: false });
+
+    const profileImageUrl = user.profileImage 
+      ? await getSignedUrl('kyc-documents', user.profileImage)
+      : null;
+
+    res.status(200).json(
+      new ApiResponse(200, 'Profile updated successfully', {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          profileImage: profileImageUrl
+        },
+      })
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────
+// POST /api/auth/profile-image
+// ─────────────────────────────────────────────
+export const uploadProfileImage = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const file = req.file;
+    if (!file) {
+      throw new ApiError(400, 'Please upload a file');
+    }
+
+    // Upload to 'kyc-documents' bucket as requested
+    const filePath = await uploadImage(file, 'profiles');
+
+    res.status(200).json(
+      new ApiResponse(200, 'Profile image uploaded successfully', { filePath })
     );
   } catch (error) {
     next(error);
