@@ -127,3 +127,61 @@ export const getSignedFileUrl = async (
     next(error);
   }
 };
+
+/**
+ * Fetch all users for management
+ */
+export const getAllUsers = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const users = await User.find({})
+      .select('name email role accountStatus createdAt profileImage')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(
+      new ApiResponse(200, 'Users fetched successfully', users)
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update user account status (Block/Unblock)
+ */
+export const updateUserStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req.params;
+    const { status } = req.body;
+
+    if (!['active', 'suspended'].includes(status)) {
+      throw new ApiError(400, 'Invalid status. Must be active or suspended.');
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    // Prevent blocking yourself
+    if (userId === (req as any).user.userId) {
+      throw new ApiError(400, 'You cannot block your own account.');
+    }
+
+    user.accountStatus = status;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json(
+      new ApiResponse(200, `User account has been ${status === 'suspended' ? 'blocked' : 'activated'}`, user)
+    );
+  } catch (error) {
+    next(error);
+  }
+};
