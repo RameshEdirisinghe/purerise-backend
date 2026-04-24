@@ -3,7 +3,7 @@ import Campaign from '../models/Campaign';
 import User from '../models/user.model';
 import { ApiResponse, ApiError } from '../utils/apiResponse';
 import { createCampaignSchema } from '../utils/validators';
-import { uploadCampaignMedia } from '../utils/uploadImage';
+import { uploadCampaignMedia, getSignedUrl } from '../utils/uploadImage';
 import { ZodError } from 'zod';
 import { sendMail } from '../services/email.service';
 import { getCampaignApprovalTemplate, getCampaignRejectionTemplate } from '../utils/emailTemplates';
@@ -146,9 +146,25 @@ export const getMyCampaigns = async (
     
     const campaigns = await Campaign.find({ ownerId })
       .sort({ createdAt: -1 });
+    
+    // Generate signed URLs for each campaign cover image
+    const formattedCampaigns = await Promise.all(campaigns.map(async (c) => ({
+      id: c._id,
+      title: c.title,
+      summary: c.summary,
+      category: c.category,
+      coverImage: await getSignedUrl('campaign-media', c.coverImage),
+      targetFunding: c.targetFunding,
+      status: c.status,
+      createdAt: c.createdAt,
+      reviewNotes: c.reviewNotes,
+      goalDescription: c.goalDescription,
+      endDate: c.endDate,
+      milestones: c.milestones
+    })));
 
     res.status(200).json(
-      new ApiResponse(200, 'Your campaigns fetched successfully', campaigns)
+      new ApiResponse(200, 'Your campaigns fetched successfully', formattedCampaigns)
     );
   } catch (error) {
     next(error);
@@ -169,8 +185,17 @@ export const getCampaignsByOwnerId = async (
     const campaigns = await Campaign.find({ ownerId })
       .sort({ createdAt: -1 });
 
+    // Generate signed URLs for each campaign cover image
+    const formattedCampaigns = await Promise.all(campaigns.map(async (c: any) => {
+      const campaignObj = c.toObject();
+      return {
+        ...campaignObj,
+        coverImage: await getSignedUrl('campaign-media', campaignObj.coverImage)
+      };
+    }));
+
     res.status(200).json(
-      new ApiResponse(200, 'Campaigns fetched successfully', campaigns)
+      new ApiResponse(200, 'Campaigns fetched successfully', formattedCampaigns)
     );
   } catch (error) {
     next(error);
@@ -190,8 +215,17 @@ export const getPendingCampaigns = async (
       .populate('ownerId', 'name email')
       .sort({ createdAt: -1 });
 
+    // Generate signed URLs for each campaign cover image
+    const formattedCampaigns = await Promise.all(campaigns.map(async (c: any) => {
+      const campaignObj = c.toObject();
+      return {
+        ...campaignObj,
+        coverImage: await getSignedUrl('campaign-media', campaignObj.coverImage)
+      };
+    }));
+
     res.status(200).json(
-      new ApiResponse(200, 'Pending campaigns fetched successfully', campaigns)
+      new ApiResponse(200, 'Pending campaigns fetched successfully', formattedCampaigns)
     );
   } catch (error) {
     next(error);

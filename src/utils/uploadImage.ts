@@ -40,3 +40,21 @@ export const uploadImage = async (file: Express.Multer.File, folder: string) => 
 export const uploadCampaignMedia = async (file: Express.Multer.File, folder: string) => {
   return uploadToSupabase(file, folder, 'campaign-media');
 };
+
+/**
+ * Generate a signed URL for a file in Supabase Storage.
+ */
+export const getSignedUrl = async (bucket: string, filePath: string, expiresIn: number = 3600) => {
+  if (!filePath) return null;
+  
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(filePath, expiresIn);
+
+  if (error) {
+    console.error('Signed URL Error:', error.message);
+    return null;
+  }
+
+  return data.signedUrl;
+};
