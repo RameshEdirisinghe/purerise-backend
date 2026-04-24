@@ -106,14 +106,14 @@ export const getSignedFileUrl = async (
   next: NextFunction
 ) => {
   try {
-    const { filePath } = req.query;
+    const { filePath, bucket = 'kyc-documents' } = req.query;
 
     if (!filePath || typeof filePath !== 'string') {
       throw new ApiError(400, 'File path is required');
     }
 
     const { data, error } = await supabase.storage
-      .from('kyc-documents')
+      .from(bucket as string)
       .createSignedUrl(filePath, 3600); // 1 hour
 
     if (error) {

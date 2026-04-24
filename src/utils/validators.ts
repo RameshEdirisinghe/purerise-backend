@@ -52,3 +52,65 @@ export const onboardingSchema = z.object({
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Campaign Creation Validation
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const milestoneSchema = z.object({
+  title: z
+    .string({ required_error: 'Milestone title is required' })
+    .min(3, 'Milestone title must be at least 3 characters')
+    .max(100, 'Milestone title must be at most 100 characters')
+    .trim(),
+  description: z
+    .string({ required_error: 'Milestone description is required' })
+    .min(10, 'Milestone description must be at least 10 characters')
+    .max(1000, 'Milestone description must be at most 1000 characters')
+    .trim(),
+  percentage: z
+    .number({ required_error: 'Release percentage is required' })
+    .min(1, 'Release percentage must be at least 1%')
+    .max(100, 'Release percentage must be at most 100%')
+    .int('Release percentage must be a whole number'),
+});
+
+export const createCampaignSchema = z.object({
+  title: z
+    .string({ required_error: 'Campaign title is required' })
+    .trim(),
+  summary: z
+    .string({ required_error: 'Campaign summary is required' })
+    .trim(),
+  description: z
+    .string({ required_error: 'Campaign description is required' })
+    .trim(),
+  category: z
+    .enum(['startup', 'medical', 'education', 'social', 'technology', 'personal'], {
+      required_error: 'Category is required',
+      invalid_type_error: 'Invalid category selected',
+    }),
+  coverImage: z
+    .string({ required_error: 'Cover image is required' })
+    .min(1, 'Cover image path is required'),
+  goalDescription: z
+    .string({ required_error: 'Goal description is required' })
+    .trim(),
+  targetFunding: z
+    .number({ required_error: 'Funding goal is required' })
+    .positive('Funding goal must be greater than 0'),
+  endDate: z.coerce.date({
+    required_error: 'End date is required',
+    invalid_type_error: 'Invalid end date format',
+  }),
+  milestones: z
+    .array(milestoneSchema, { required_error: 'At least one milestone is required' })
+    .min(1, 'At least one milestone is required')
+    .refine(
+      (ms) => ms.reduce((sum, m) => sum + m.percentage, 0) === 100,
+      'Milestone percentages must total exactly 100%'
+    ),
+});
+
+export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
+export type MilestoneInput = z.infer<typeof milestoneSchema>;

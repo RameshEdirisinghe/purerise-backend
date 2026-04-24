@@ -12,16 +12,21 @@ interface IMilestone {
 export interface ICampaign extends Document {
   ownerId: mongoose.Types.ObjectId;
   title: string;
+  summary: string;
   description: string;
   category: 'startup' | 'medical' | 'education' | 'social' | 'technology' | 'personal';
   coverImage: string;
   media: string[];
   
   goalDescription: string;
+  targetFunding: number;
+  endDate: Date;
   milestones: IMilestone[];
   
   status: CampaignStatus;
   approvedBy?: mongoose.Types.ObjectId;
+  reviewedAt?: Date;
+  reviewNotes?: string;
   
   createdAt: Date;
   updatedAt: Date;
@@ -43,6 +48,7 @@ const campaignSchema = new Schema<ICampaign>(
       index: true,
     },
     title: { type: String, required: true, trim: true },
+    summary: { type: String, required: true, trim: true },
     description: { type: String, required: true },
     category: {
       type: String,
@@ -54,6 +60,8 @@ const campaignSchema = new Schema<ICampaign>(
     media: [{ type: String }],
     
     goalDescription: { type: String, required: true },
+    targetFunding: { type: Number, required: true },
+    endDate: { type: Date, required: true },
     milestones: [milestoneSchema],
     
     status: {
@@ -66,6 +74,8 @@ const campaignSchema = new Schema<ICampaign>(
       type: Schema.Types.ObjectId,
       ref: 'User',
     },
+    reviewedAt: { type: Date },
+    reviewNotes: { type: String },
   },
   { timestamps: true }
 );

@@ -22,7 +22,6 @@ export const authMiddleware = (
 ): void => {
   try {
     const token: string | undefined = req.cookies['accessToken'];
-    console.log('Token:', token);
 
     if (!token) {
       throw new ApiError(401, 'Access token missing. Please log in.');
