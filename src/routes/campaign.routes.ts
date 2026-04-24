@@ -5,7 +5,8 @@ import {
   getCampaignsByOwnerId,
   uploadCampaignMediaController,
   getPendingCampaigns,
-  reviewCampaign
+  reviewCampaign,
+  getActiveCampaigns
 } from '../controllers/campaign.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
@@ -75,5 +76,12 @@ router.patch(
   requireRole('admin'),
   reviewCampaign
 );
+
+/**
+ * @route GET /api/campaigns/active
+ * @desc Get all live campaigns for discovery
+ * @access Public (authenticated)
+ */
+router.get('/active', getActiveCampaigns);
 
 export default router;

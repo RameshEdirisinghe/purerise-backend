@@ -289,3 +289,33 @@ export const reviewCampaign = async (
     next(error);
   }
 };
+
+/**
+ * Get all active campaigns for discovery (Public/Contributor)
+ */
+export const getActiveCampaigns = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const campaigns = await Campaign.find({ status: 'active' })
+      .populate('ownerId', 'name')
+      .sort({ createdAt: -1 });
+
+    // Generate signed URLs for each campaign cover image
+    const formattedCampaigns = await Promise.all(campaigns.map(async (c: any) => {
+      const campaignObj = c.toObject();
+      return {
+        ...campaignObj,
+        coverImage: await getSignedUrl('campaign-media', campaignObj.coverImage)
+      };
+    }));
+
+    res.status(200).json(
+      new ApiResponse(200, 'Active campaigns fetched successfully', formattedCampaigns)
+    );
+  } catch (error) {
+    next(error);
+  }
+};
