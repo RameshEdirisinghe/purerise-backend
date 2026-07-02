@@ -63,6 +63,22 @@ export const createCampaign = async (
       );
     }
 
+    const now = Date.now();
+    const durationMs = payload.endDate.getTime() - now;
+    let accumulatedPercentage = 0;
+
+    const milestonesWithDates = payload.milestones.map((m) => {
+      accumulatedPercentage += m.percentage;
+      const completionTime = now + (durationMs * (accumulatedPercentage / 100));
+      return {
+        title: m.title,
+        description: m.description,
+        fundPercentage: m.percentage,
+        expectedCompletionDate: new Date(completionTime),
+        status: 'pending' as const,
+      };
+    });
+
     // Create campaign document
     const campaign = await Campaign.create({
       ownerId: user._id,
@@ -74,12 +90,7 @@ export const createCampaign = async (
       goalDescription: payload.goalDescription,
       targetFunding: payload.targetFunding,
       endDate: payload.endDate,
-      milestones: payload.milestones.map((m) => ({
-        title: m.title,
-        description: m.description,
-        expectedCompletionDate: payload.endDate, // Use campaign end date for all milestones by default
-        status: 'pending',
-      })),
+      milestones: milestonesWithDates,
       status: 'pending_approval', // Requires admin review before going live
     });
 
@@ -359,10 +370,19 @@ export const getCampaignById = async (
         : Promise.resolve(null)
     ]);
 
+    let mediaUrls: string[] = [];
+    if (campaignObj.media && Array.isArray(campaignObj.media)) {
+      const results = await Promise.all(
+        campaignObj.media.map((path: string) => getSignedUrl('kyc-documents', path))
+      );
+      mediaUrls = results.filter((url): url is string => url !== null);
+    }
+
     const formattedCampaign = {
       ...campaignObj,
       id: campaignObj._id.toString(),
       coverImage: coverImageUrl,
+      media: mediaUrls,
       owner: campaign.ownerId ? {
         name: (campaign.ownerId as any).name,
         email: (campaign.ownerId as any).email,

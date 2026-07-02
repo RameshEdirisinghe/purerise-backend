@@ -5,6 +5,7 @@ export type CampaignStatus = 'draft' | 'pending_approval' | 'active' | 'paused' 
 interface IMilestone {
   title: string;
   description: string;
+  fundPercentage: number;
   expectedCompletionDate: Date;
   status: 'pending' | 'completed';
 }
@@ -35,6 +36,7 @@ export interface ICampaign extends Document {
 const milestoneSchema = new Schema<IMilestone>({
   title: { type: String, required: true },
   description: { type: String, required: true },
+  fundPercentage: { type: Number, required: true },
   expectedCompletionDate: { type: Date, required: true },
   status: { type: String, enum: ['pending', 'completed'], default: 'pending' },
 });
