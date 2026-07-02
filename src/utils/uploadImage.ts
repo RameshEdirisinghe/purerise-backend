@@ -1,9 +1,7 @@
 import { supabase } from '../config/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
-/**
- * Core utility to handle Supabase storage uploads across different buckets.
- */
+
 const uploadToSupabase = async (
   file: Express.Multer.File, 
   folder: string, 

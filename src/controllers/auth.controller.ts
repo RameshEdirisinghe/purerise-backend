@@ -68,9 +68,7 @@ export const register = async (
   }
 };
 
-// ─────────────────────────────────────────────
-// POST /api/auth/register-admin
-// ─────────────────────────────────────────────
+
 export const registerAdmin = async (
   req: Request,
   res: Response,
@@ -160,7 +158,9 @@ export const login = async (
           name: user.name,
           email: user.email,
           role: user.role,
-          profileImage: profileImageUrl
+          profileImage: profileImageUrl,
+          walletAddress: user.walletAddress ?? null,
+          isWalletConnected: user.isWalletConnected,
         },
         redirectTo: user.role === 'admin'
           ? '/admin/dashboard'
@@ -176,9 +176,6 @@ export const login = async (
   }
 };
 
-// ─────────────────────────────────────────────
-// POST /api/auth/refresh
-// ─────────────────────────────────────────────
 export const refresh = async (
   req: Request,
   res: Response,
@@ -218,7 +215,9 @@ export const refresh = async (
         name: user.name,
         email: user.email,
         role: user.role,
-        profileImage: profileImageUrl
+        profileImage: profileImageUrl,
+        walletAddress: user.walletAddress ?? null,
+        isWalletConnected: user.isWalletConnected,
       },
     }));
   } catch (error) {
@@ -226,9 +225,7 @@ export const refresh = async (
   }
 };
 
-// ─────────────────────────────────────────────
-// POST /api/auth/logout
-// ─────────────────────────────────────────────
+
 export const logout = async (
   req: Request,
   res: Response,
@@ -279,6 +276,8 @@ export const getMe = async (
           role: user.role,
           profileImage: profileImageUrl,
           createdAt: user.createdAt,
+          walletAddress: user.walletAddress ?? null,
+          isWalletConnected: user.isWalletConnected,
         },
       })
     );
