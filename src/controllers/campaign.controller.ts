@@ -225,7 +225,7 @@ export const getPendingCampaigns = async (
 ) => {
   try {
     const campaigns = await Campaign.find({ status: 'pending_approval' })
-      .populate('ownerId', 'name email')
+      .populate('ownerId', 'name email walletAddress')
       .sort({ createdAt: -1 });
 
     // Generate signed URLs for each campaign cover image
