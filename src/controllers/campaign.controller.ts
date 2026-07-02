@@ -10,21 +10,7 @@ import { sendMail } from '../services/email.service';
 import { getCampaignApprovalTemplate, getCampaignRejectionTemplate } from '../utils/emailTemplates';
 
 /**
- * ─────────────────────────────────────────────────────────────────────────────
  * POST /api/campaigns/create
- * ─────────────────────────────────────────────────────────────────────────────
- * Create a new campaign and deploy to pending_approval status
- * 
- * Expected payload:
- * {
- *   title: string
- *   summary: string
- *   description: string
- *   category: 'startup' | 'medical' | 'education' | 'social' | 'technology' | 'personal'
- *   coverImage: string (path from Supabase)
- *   goalDescription: string
- *   milestones: Array<{ title, description, percentage }>
- * }
  */
 export const createCampaign = async (
   req: Request,
@@ -32,7 +18,6 @@ export const createCampaign = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Validate request body
     const parsed = createCampaignSchema.safeParse(req.body);
     if (!parsed.success) {
       const errors = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`);
@@ -42,25 +27,15 @@ export const createCampaign = async (
     const payload = parsed.data;
     const ownerId = (req as any).user.userId;
 
-    // Fetch user to verify they are a projectOwner
     const user = await User.findById(ownerId);
-    if (!user) {
-      throw new ApiError(404, 'User not found');
-    }
+    if (!user) throw new ApiError(404, 'User not found');
 
     if (user.role !== 'projectOwner') {
-      throw new ApiError(
-        403,
-        'Only project owners can create campaigns. Please upgrade your account to create campaigns.'
-      );
+      throw new ApiError(403, 'Only project owners can create campaigns.');
     }
 
-    // Check if user has completed onboarding (for projectOwner)
     if (user.accountStatus !== 'active') {
-      throw new ApiError(
-        403,
-        `Your account is ${user.accountStatus}. Complete onboarding to create campaigns.`
-      );
+      throw new ApiError(403, `Your account is ${user.accountStatus}. Complete onboarding to create campaigns.`);
     }
 
     const now = Date.now();
@@ -79,7 +54,6 @@ export const createCampaign = async (
       };
     });
 
-    // Create campaign document
     const campaign = await Campaign.create({
       ownerId: user._id,
       title: payload.title,
@@ -91,7 +65,7 @@ export const createCampaign = async (
       targetFunding: payload.targetFunding,
       endDate: payload.endDate,
       milestones: milestonesWithDates,
-      status: 'pending_approval', // Requires admin review before going live
+      status: 'pending_approval',
     });
 
     res.status(201).json(
@@ -107,13 +81,7 @@ export const createCampaign = async (
     );
   } catch (error) {
     if (error instanceof ZodError) {
-      next(
-        new ApiError(
-          400,
-          'Validation failed',
-          error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
-        )
-      );
+      next(new ApiError(400, 'Validation failed', error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)));
       return;
     }
     next(error);
@@ -121,7 +89,7 @@ export const createCampaign = async (
 };
 
 /**
- * Upload campaign media to Supabase Storage
+ * POST /api/campaigns/media-upload
  */
 export const uploadCampaignMediaController = async (
   req: Request,
@@ -130,23 +98,18 @@ export const uploadCampaignMediaController = async (
 ) => {
   try {
     const file = req.file;
-    if (!file) {
-      throw new ApiError(400, 'Please upload a file');
-    }
+    if (!file) throw new ApiError(400, 'Please upload a file');
 
-    // Use the dedicated campaign media utility
     const filePath = await uploadCampaignMedia(file, 'media');
-
-    res.status(200).json(
-      new ApiResponse(200, 'Campaign media uploaded successfully', { filePath })
-    );
+    res.status(200).json(new ApiResponse(200, 'Campaign media uploaded successfully', { filePath }));
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Get all campaigns for the logged-in campaign owner
+ * GET /api/campaigns/my-campaigns
+ * Returns campaigns for the logged-in project owner, with contributions summary.
  */
 export const getMyCampaigns = async (
   req: Request,
@@ -155,36 +118,52 @@ export const getMyCampaigns = async (
 ) => {
   try {
     const ownerId = (req as any).user.userId;
-    
-    const campaigns = await Campaign.find({ ownerId })
-      .sort({ createdAt: -1 });
-    
-    // Generate signed URLs for each campaign cover image
-    const formattedCampaigns = await Promise.all(campaigns.map(async (c) => ({
-      id: c._id,
-      title: c.title,
-      summary: c.summary,
-      category: c.category,
-      coverImage: await getSignedUrl('kyc-documents', c.coverImage),
-      targetFunding: c.targetFunding,
-      status: c.status,
-      createdAt: c.createdAt,
-      reviewNotes: c.reviewNotes,
-      goalDescription: c.goalDescription,
-      endDate: c.endDate,
-      milestones: c.milestones
-    })));
 
-    res.status(200).json(
-      new ApiResponse(200, 'Your campaigns fetched successfully', formattedCampaigns)
-    );
+    const campaigns = await Campaign.find({ ownerId }).sort({ createdAt: -1 });
+
+    const formattedCampaigns = await Promise.all(campaigns.map(async (c) => {
+      const signedCover = await getSignedUrl('kyc-documents', c.coverImage);
+
+      // Build contributions with signed profile image URLs
+      const contributions = await Promise.all(c.contributions.map(async (contrib) => ({
+        walletAddress: contrib.walletAddress,
+        name: contrib.name,
+        email: contrib.email,
+        profileImage: contrib.profileImage
+          ? await getSignedUrl('kyc-documents', contrib.profileImage)
+          : null,
+        amountEth: contrib.amountEth,
+        txHash: contrib.txHash,
+        timestamp: contrib.timestamp,
+      })));
+
+      return {
+        id: c._id,
+        _id: c._id,
+        title: c.title,
+        summary: c.summary,
+        category: c.category,
+        coverImage: signedCover,
+        targetFunding: c.targetFunding,
+        status: c.status,
+        createdAt: c.createdAt,
+        reviewNotes: c.reviewNotes,
+        goalDescription: c.goalDescription,
+        endDate: c.endDate,
+        milestones: c.milestones,
+        contributions,
+        contributorCount: c.contributions.length,
+      };
+    }));
+
+    res.status(200).json(new ApiResponse(200, 'Your campaigns fetched successfully', formattedCampaigns));
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Get campaigns by a specific owner ID (Admin/Public use)
+ * GET /api/campaigns/owner/:ownerId
  */
 export const getCampaignsByOwnerId = async (
   req: Request,
@@ -193,30 +172,26 @@ export const getCampaignsByOwnerId = async (
 ) => {
   try {
     const { ownerId } = req.params;
-    
-    const campaigns = await Campaign.find({ ownerId })
-      .sort({ createdAt: -1 });
 
-    // Generate signed URLs for each campaign cover image
+    const campaigns = await Campaign.find({ ownerId }).sort({ createdAt: -1 });
+
     const formattedCampaigns = await Promise.all(campaigns.map(async (c: any) => {
       const campaignObj = c.toObject();
       return {
         ...campaignObj,
         id: campaignObj._id.toString(),
-        coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage)
+        coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage),
       };
     }));
 
-    res.status(200).json(
-      new ApiResponse(200, 'Campaigns fetched successfully', formattedCampaigns)
-    );
+    res.status(200).json(new ApiResponse(200, 'Campaigns fetched successfully', formattedCampaigns));
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Get all campaigns with 'pending_approval' status (Admin only)
+ * GET /api/campaigns/pending
  */
 export const getPendingCampaigns = async (
   _req: Request,
@@ -228,26 +203,23 @@ export const getPendingCampaigns = async (
       .populate('ownerId', 'name email walletAddress')
       .sort({ createdAt: -1 });
 
-    // Generate signed URLs for each campaign cover image
     const formattedCampaigns = await Promise.all(campaigns.map(async (c: any) => {
       const campaignObj = c.toObject();
       return {
         ...campaignObj,
         id: campaignObj._id.toString(),
-        coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage)
+        coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage),
       };
     }));
 
-    res.status(200).json(
-      new ApiResponse(200, 'Pending campaigns fetched successfully', formattedCampaigns)
-    );
+    res.status(200).json(new ApiResponse(200, 'Pending campaigns fetched successfully', formattedCampaigns));
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Review (Approve/Reject) a campaign (Admin only)
+ * PATCH /api/campaigns/:campaignId/review
  */
 export const reviewCampaign = async (
   req: Request,
@@ -263,22 +235,18 @@ export const reviewCampaign = async (
     }
 
     const campaign = await Campaign.findById(campaignId).populate('ownerId', 'name email');
-    if (!campaign) {
-      throw new ApiError(404, 'Campaign not found');
-    }
+    if (!campaign) throw new ApiError(404, 'Campaign not found');
 
     if (campaign.status !== 'pending_approval') {
       throw new ApiError(400, `Campaign is already ${campaign.status}`);
     }
 
-    // Update campaign status
     campaign.status = status;
     campaign.approvedBy = (req as any).user.userId;
     campaign.reviewNotes = notes;
     campaign.reviewedAt = new Date();
     await campaign.save();
 
-    // Send Email Notification
     const owner = campaign.ownerId as any;
     if (owner && owner.email) {
       if (status === 'active') {
@@ -305,7 +273,7 @@ export const reviewCampaign = async (
 };
 
 /**
- * Get all active campaigns for discovery (Public/Contributor)
+ * GET /api/campaigns/active
  */
 export const getActiveCampaigns = async (
   _req: Request,
@@ -317,26 +285,23 @@ export const getActiveCampaigns = async (
       .populate('ownerId', 'name')
       .sort({ createdAt: -1 });
 
-    // Generate signed URLs for each campaign cover image
     const formattedCampaigns = await Promise.all(campaigns.map(async (c: any) => {
       const campaignObj = c.toObject();
       return {
         ...campaignObj,
         id: campaignObj._id.toString(),
-        coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage)
+        coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage),
       };
     }));
 
-    res.status(200).json(
-      new ApiResponse(200, 'Active campaigns fetched successfully', formattedCampaigns)
-    );
+    res.status(200).json(new ApiResponse(200, 'Active campaigns fetched successfully', formattedCampaigns));
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Get a single campaign by ID with signed URL for cover image
+ * GET /api/campaigns/:campaignId
  */
 export const getCampaignById = async (
   req: Request,
@@ -355,19 +320,16 @@ export const getCampaignById = async (
     }
 
     const campaign = await Campaign.findById(campaignId).populate('ownerId', 'name email profileImage');
-    
-    if (!campaign) {
-      throw new ApiError(404, 'Campaign not found');
-    }
+
+    if (!campaign) throw new ApiError(404, 'Campaign not found');
 
     const campaignObj = campaign.toObject();
-    
-    // Generate signed URLs
+
     const [coverImageUrl, ownerImageUrl] = await Promise.all([
       getSignedUrl('kyc-documents', campaignObj.coverImage),
-      campaignObj.ownerId && (campaignObj.ownerId as any).profileImage 
-        ? getSignedUrl('kyc-documents', (campaignObj.ownerId as any).profileImage) // Assuming profile images might be in kyc or a separate bucket
-        : Promise.resolve(null)
+      campaignObj.ownerId && (campaignObj.ownerId as any).profileImage
+        ? getSignedUrl('kyc-documents', (campaignObj.ownerId as any).profileImage)
+        : Promise.resolve(null),
     ]);
 
     let mediaUrls: string[] = [];
@@ -378,23 +340,156 @@ export const getCampaignById = async (
       mediaUrls = results.filter((url): url is string => url !== null);
     }
 
+    // Build contributions with resolved profile image URLs
+    const contributions = await Promise.all(
+      (campaignObj.contributions || []).map(async (contrib: any) => ({
+        walletAddress: contrib.walletAddress,
+        name: contrib.name,
+        email: contrib.email,
+        profileImage: contrib.profileImage
+          ? await getSignedUrl('kyc-documents', contrib.profileImage)
+          : null,
+        amountEth: contrib.amountEth,
+        txHash: contrib.txHash,
+        timestamp: contrib.timestamp,
+      }))
+    );
+
     const formattedCampaign = {
       ...campaignObj,
       id: campaignObj._id.toString(),
       coverImage: coverImageUrl,
       media: mediaUrls,
-      owner: campaign.ownerId ? {
-        name: (campaign.ownerId as any).name,
-        email: (campaign.ownerId as any).email,
-        profileImage: ownerImageUrl
-      } : null
+      contributions,
+      owner: campaign.ownerId
+        ? {
+            name: (campaign.ownerId as any).name,
+            email: (campaign.ownerId as any).email,
+            profileImage: ownerImageUrl,
+          }
+        : null,
     };
 
-    // Remove the internal ownerId to avoid confusion on frontend
     delete (formattedCampaign as any).ownerId;
 
+    res.status(200).json(new ApiResponse(200, 'Campaign fetched successfully', formattedCampaign));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/campaigns/:campaignId/contribution
+ * Records a contributor's on-chain contribution with their identity info.
+ * Called from the frontend immediately after tx.wait() resolves.
+ */
+export const recordContribution = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { campaignId } = req.params;
+    const { walletAddress, amountEth, txHash } = req.body as {
+      walletAddress: string;
+      amountEth: string;
+      txHash: string;
+    };
+
+    if (!walletAddress || !amountEth || !txHash) {
+      throw new ApiError(400, 'walletAddress, amountEth, and txHash are required');
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(campaignId as string)) {
+      throw new ApiError(400, 'Invalid campaign ID');
+    }
+
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) throw new ApiError(404, 'Campaign not found');
+
+    // Look up contributor by wallet address to get identity
+    const userId = (req as any).user.userId;
+    const contributor = await User.findById(userId);
+    if (!contributor) throw new ApiError(404, 'Contributor not found');
+
+    campaign.contributions.push({
+      walletAddress: walletAddress.toLowerCase(),
+      userId: contributor._id as mongoose.Types.ObjectId,
+      name: contributor.name,
+      email: contributor.email,
+      profileImage: contributor.profileImage,
+      amountEth,
+      txHash,
+      timestamp: new Date(),
+    });
+
+    await campaign.save();
+
+    res.status(201).json(
+      new ApiResponse(201, 'Contribution recorded successfully', {
+        contribution: {
+          name: contributor.name,
+          amountEth,
+          txHash,
+          timestamp: new Date(),
+        },
+      })
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/campaigns/my-contributions
+ * Returns all contributions made by the authenticated contributor across all campaigns.
+ */
+export const getMyContributions = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = (req as any).user.userId;
+
+    // Find all campaigns where this user has contributed
+    const campaigns = await Campaign.find({ 'contributions.userId': userId });
+
+    let totalAmountEth = 0;
+    const result: any[] = [];
+
+    for (const campaign of campaigns) {
+      const signedCover = await getSignedUrl('kyc-documents', campaign.coverImage);
+
+      const userContributions = campaign.contributions.filter(
+        (c) => c.userId?.toString() === userId.toString()
+      );
+
+      for (const contrib of userContributions) {
+        const amount = parseFloat(contrib.amountEth) || 0;
+        totalAmountEth += amount;
+
+        result.push({
+          campaignId: campaign._id.toString(),
+          campaignTitle: campaign.title,
+          campaignCoverImage: signedCover,
+          campaignStatus: campaign.status,
+          amountEth: contrib.amountEth,
+          txHash: contrib.txHash,
+          timestamp: contrib.timestamp,
+        });
+      }
+    }
+
+    // Sort by most recent first
+    result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
     res.status(200).json(
-      new ApiResponse(200, 'Campaign fetched successfully', formattedCampaign)
+      new ApiResponse(200, 'Contributions fetched successfully', {
+        contributions: result,
+        totalAmountEth: totalAmountEth.toFixed(6),
+        totalCampaigns: campaigns.length,
+      })
     );
   } catch (error) {
     next(error);
