@@ -17,7 +17,21 @@ import { upload } from '../middleware/multer.middleware';
 
 const router = Router();
 
-// All campaign routes require authentication
+/**
+ * @route GET /api/campaigns/active
+ * @desc Get all live campaigns for discovery
+ * @access Public (no auth required)
+ */
+router.get('/active', getActiveCampaigns);
+
+/**
+ * @route GET /api/campaigns/:campaignId
+ * @desc Get a single campaign by ID
+ * @access Public (no auth required)
+ */
+router.get('/:campaignId', getCampaignById);
+
+// All routes below require authentication
 router.use(authMiddleware);
 
 /**
@@ -76,13 +90,5 @@ router.patch('/:campaignId/review', requireRole('admin'), reviewCampaign);
  * @body { walletAddress, amountEth, txHash }
  */
 router.post('/:campaignId/contribution', requireRole('contributor'), recordContribution);
-
-/**
- * @route GET /api/campaigns/active
- * @desc Get all live campaigns for discovery
- * @access Public (authenticated)
- */
-router.get('/active', getActiveCampaigns);
-router.get('/:campaignId', getCampaignById);
 
 export default router;
