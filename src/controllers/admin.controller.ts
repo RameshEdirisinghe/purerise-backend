@@ -3,8 +3,10 @@ import CampaignOwnerRequest from '../models/CampaignOwnerRequest';
 import User from '../models/user.model';
 import { ApiResponse, ApiError } from '../utils/apiResponse';
 import { supabase } from '../config/supabase';
-import { sendMail } from '../services/email.service';
-import { getOnboardingApprovalTemplate, getOnboardingRejectionTemplate } from '../utils/emailTemplates';
+import {
+  sendCampaignOwnerApprovedEmail,
+  sendCampaignOwnerRejectedEmail,
+} from '../services/email.service';
 
 /**
  * Fetch all pending campaign owner requests
@@ -66,26 +68,19 @@ export const reviewRequest = async (
         user.accountStatus = 'active';
         await user.save({ validateBeforeSave: false });
 
-        // Send Approval Email
-        await sendMail({
-          to: user.email,
-          subject: 'PureRaise: Your Campaign Owner Account is Active! 🚀',
-          html: getOnboardingApprovalTemplate(user.name, `${process.env.CLIENT_URL}/login`)
-        }).catch(err => console.error('Email sending failed:', err));
+        // Non-blocking — approval is the primary operation
+        sendCampaignOwnerApprovedEmail(user.email, user.name)
+          .catch(err => console.error('[Email] Owner approval email failed:', err));
       }
     } else {
-      // If rejected, we might want to keep user as pending but they'll need to re-submit
       const user = await User.findById(request.userId);
       if (user) {
         user.accountStatus = 'rejected';
         await user.save({ validateBeforeSave: false });
 
-        // Send Rejection Email
-        await sendMail({
-          to: user.email,
-          subject: 'Update on your PureRaise Campaign Owner Application',
-          html: getOnboardingRejectionTemplate(user.name, notes, `${process.env.CLIENT_URL}/onboarding/campaign-owner`)
-        }).catch(err => console.error('Email sending failed:', err));
+        // Non-blocking — rejection is the primary operation
+        sendCampaignOwnerRejectedEmail(user.email, user.name, notes)
+          .catch(err => console.error('[Email] Owner rejection email failed:', err));
       }
     }
 

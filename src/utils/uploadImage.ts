@@ -43,7 +43,7 @@ export const uploadCampaignMedia = async (file: Express.Multer.File, folder: str
  * Generate a signed URL for a file in Supabase Storage.
  * Includes fallback logic to support legacy buckets.
  */
-export const getSignedUrl = async (bucket: string, filePath: string, expiresIn: number = 3600) => {
+export const getSignedUrl = async (bucket: string, filePath: string, expiresIn: number = 3600, downloadName?: string) => {
   if (!filePath) return null;
 
   // If it's already a full URL, return it as is
@@ -57,17 +57,19 @@ export const getSignedUrl = async (bucket: string, filePath: string, expiresIn: 
     cleanPath = cleanPath.replace(`${bucket}/`, '').replace(/^\/+/, '');
   }
 
+  const options = downloadName ? { download: downloadName } : undefined;
+
   // Try the primary bucket first
   const { data, error } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(cleanPath, expiresIn);
+    .createSignedUrl(cleanPath, expiresIn, options);
 
   if (error) {
     // FALLBACK: If not found in primary bucket, try 'campaign-media' (legacy)
     if (error.message === 'Object not found' && bucket !== 'campaign-media') {
       const { data: fallbackData, error: fallbackError } = await supabase.storage
         .from('campaign-media')
-        .createSignedUrl(cleanPath, expiresIn);
+        .createSignedUrl(cleanPath, expiresIn, options);
       
       if (!fallbackError && fallbackData) {
         return fallbackData.signedUrl;
@@ -78,7 +80,7 @@ export const getSignedUrl = async (bucket: string, filePath: string, expiresIn: 
     if (error.message === 'Object not found' && bucket !== 'kyc-documents') {
       const { data: fallbackData, error: fallbackError } = await supabase.storage
         .from('kyc-documents')
-        .createSignedUrl(cleanPath, expiresIn);
+        .createSignedUrl(cleanPath, expiresIn, options);
       
       if (!fallbackError && fallbackData) {
         return fallbackData.signedUrl;

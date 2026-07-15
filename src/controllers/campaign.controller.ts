@@ -6,8 +6,7 @@ import { ApiResponse, ApiError } from '../utils/apiResponse';
 import { createCampaignSchema } from '../utils/validators';
 import { uploadCampaignMedia, getSignedUrl } from '../utils/uploadImage';
 import { ZodError } from 'zod';
-import { sendMail } from '../services/email.service';
-import { getCampaignApprovalTemplate, getCampaignRejectionTemplate } from '../utils/emailTemplates';
+import { sendCampaignApprovedEmail, sendCampaignRejectedEmail } from '../services/email.service';
 
 /**
  * POST /api/campaigns/create
@@ -65,6 +64,7 @@ export const createCampaign = async (
       targetFunding: payload.targetFunding,
       endDate: payload.endDate,
       milestones: milestonesWithDates,
+      proposalPdf: (req.body as any).proposalPdf || null,
       status: 'pending_approval',
     });
 
@@ -102,6 +102,29 @@ export const uploadCampaignMediaController = async (
 
     const filePath = await uploadCampaignMedia(file, 'media');
     res.status(200).json(new ApiResponse(200, 'Campaign media uploaded successfully', { filePath }));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/campaigns/proposal-upload
+ * Upload a project proposal PDF. Reuses the same Supabase bucket/logic as
+ * media-upload — only difference is it validates the file is a PDF.
+ */
+export const uploadProposalPdfController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const file = req.file;
+    if (!file) throw new ApiError(400, 'Please upload a PDF file');
+    if (file.mimetype !== 'application/pdf') {
+      throw new ApiError(400, 'Only PDF files are allowed for project proposals');
+    }
+    const filePath = await uploadCampaignMedia(file, 'proposals');
+    res.status(200).json(new ApiResponse(200, 'Proposal PDF uploaded successfully', { filePath }));
   } catch (error) {
     next(error);
   }
@@ -210,6 +233,7 @@ export const getPendingCampaigns = async (
         ...campaignObj,
         id: campaignObj._id.toString(),
         coverImage: await getSignedUrl('kyc-documents', campaignObj.coverImage),
+        proposalPdf: campaignObj.proposalPdf ? await getSignedUrl('kyc-documents', campaignObj.proposalPdf, 3600, 'Project-Proposal.pdf') : null,
       };
     }));
 
@@ -251,17 +275,13 @@ export const reviewCampaign = async (
     const owner = campaign.ownerId as any;
     if (owner && owner.email) {
       if (status === 'active') {
-        await sendMail({
-          to: owner.email,
-          subject: `PureRaise: Your Campaign "${campaign.title}" is LIVE! 🚀`,
-          html: getCampaignApprovalTemplate(owner.name, campaign.title, `${process.env.CLIENT_URL}/campaign-owner/dashboard`)
-        }).catch(err => console.error('Approval email failed:', err));
+        // Non-blocking — campaign approval is the primary operation
+        sendCampaignApprovedEmail(owner.email, owner.name, campaign.title)
+          .catch(err => console.error('[Email] Campaign approval email failed:', err));
       } else {
-        await sendMail({
-          to: owner.email,
-          subject: `Update on your campaign: "${campaign.title}"`,
-          html: getCampaignRejectionTemplate(owner.name, campaign.title, notes, `${process.env.CLIENT_URL}/campaign-owner/create`)
-        }).catch(err => console.error('Rejection email failed:', err));
+        // Non-blocking — campaign rejection is the primary operation
+        sendCampaignRejectedEmail(owner.email, owner.name, campaign.title, notes)
+          .catch(err => console.error('[Email] Campaign rejection email failed:', err));
       }
     }
 
@@ -356,6 +376,11 @@ export const getCampaignById = async (
       }))
     );
 
+    // Resolve proposalPdf signed URL if one exists
+    const proposalPdfUrl = campaignObj.proposalPdf
+      ? await getSignedUrl('kyc-documents', campaignObj.proposalPdf, 3600, 'Project-Proposal.pdf')
+      : null;
+
     const formattedCampaign = {
       ...campaignObj,
       id: campaignObj._id.toString(),
@@ -363,6 +388,7 @@ export const getCampaignById = async (
       media: mediaUrls,
       contributions,
       withdrawals: campaignObj.withdrawals || [],
+      proposalPdf: proposalPdfUrl,
       owner: campaign.ownerId
         ? {
             name: (campaign.ownerId as any).name,

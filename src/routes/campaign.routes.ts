@@ -4,6 +4,7 @@ import {
   getMyCampaigns, 
   getCampaignsByOwnerId,
   uploadCampaignMediaController,
+  uploadProposalPdfController,
   getPendingCampaigns,
   reviewCampaign,
   getActiveCampaigns,
@@ -45,6 +46,13 @@ router.post('/create', requireRole('projectOwner'), createCampaign);
  * @access projectOwner
  */
 router.post('/media-upload', requireRole('projectOwner'), upload.single('file'), uploadCampaignMediaController);
+
+/**
+ * @route POST /api/campaigns/proposal-upload
+ * @desc Upload a project proposal PDF
+ * @access projectOwner
+ */
+router.post('/proposal-upload', requireRole('projectOwner'), upload.single('file'), uploadProposalPdfController);
 
 /**
  * @route GET /api/campaigns/my-campaigns

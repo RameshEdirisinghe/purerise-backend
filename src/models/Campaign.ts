@@ -36,6 +36,7 @@ export interface ICampaign extends Document {
   category: 'startup' | 'medical' | 'education' | 'social' | 'technology' | 'personal';
   coverImage: string;
   media: string[];
+  proposalPdf?: string;  // optional project-proposal PDF stored in Supabase
 
   goalDescription: string;
   targetFunding: number;
@@ -104,6 +105,7 @@ const campaignSchema = new Schema<ICampaign>(
     },
     coverImage: { type: String, required: true },
     media: [{ type: String }],
+    proposalPdf: { type: String, default: null }, // Supabase path for project proposal PDF
 
     goalDescription: { type: String, required: true },
     targetFunding: { type: Number, required: true },
