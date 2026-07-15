@@ -21,6 +21,13 @@ export interface IContribution {
   timestamp: Date;
 }
 
+export interface IWithdrawal {
+  amountEth: string;
+  txHash: string;
+  blockNumber?: number;
+  timestamp: Date;
+}
+
 export interface ICampaign extends Document {
   ownerId: mongoose.Types.ObjectId;
   title: string;
@@ -35,6 +42,7 @@ export interface ICampaign extends Document {
   endDate: Date;
   milestones: IMilestone[];
   contributions: IContribution[];
+  withdrawals: IWithdrawal[];
 
   status: CampaignStatus;
   approvedBy?: mongoose.Types.ObjectId;
@@ -67,6 +75,16 @@ const contributionSchema = new Schema<IContribution>(
   { _id: false }
 );
 
+const withdrawalSchema = new Schema<IWithdrawal>(
+  {
+    amountEth:   { type: String, required: true },
+    txHash:      { type: String, required: true },
+    blockNumber: { type: Number },
+    timestamp:   { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const campaignSchema = new Schema<ICampaign>(
   {
     ownerId: {
@@ -92,6 +110,7 @@ const campaignSchema = new Schema<ICampaign>(
     endDate: { type: Date, required: true },
     milestones: [milestoneSchema],
     contributions: { type: [contributionSchema], default: [] },
+    withdrawals:   { type: [withdrawalSchema],   default: [] },
 
     status: {
       type: String,

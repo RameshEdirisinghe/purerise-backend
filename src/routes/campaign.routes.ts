@@ -10,6 +10,7 @@ import {
   getCampaignById,
   recordContribution,
   getMyContributions,
+  recordWithdrawal,
 } from '../controllers/campaign.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
@@ -51,16 +52,10 @@ router.post('/media-upload', requireRole('projectOwner'), upload.single('file'),
 router.get('/my-campaigns', requireRole('projectOwner'), getMyCampaigns);
 
 /**
- * @route GET /api/campaigns/:campaignId
- * @desc Get a single campaign by ID
- * @access Public (no auth required)
- */
-router.get('/:campaignId', getCampaignById);
-
-/**
  * @route GET /api/campaigns/my-contributions
  * @desc Get all contributions made by the authenticated contributor
  * @access contributor
+ * NOTE: Must be before /:campaignId wildcard to avoid route shadowing
  */
 router.get('/my-contributions', requireRole('contributor'), getMyContributions);
 
@@ -68,6 +63,7 @@ router.get('/my-contributions', requireRole('contributor'), getMyContributions);
  * @route GET /api/campaigns/owner/:ownerId
  * @desc Get campaigns by owner ID (Admin access)
  * @access admin
+ * NOTE: Must be before /:campaignId wildcard to avoid route shadowing
  */
 router.get('/owner/:ownerId', requireRole('admin'), getCampaignsByOwnerId);
 
@@ -75,8 +71,17 @@ router.get('/owner/:ownerId', requireRole('admin'), getCampaignsByOwnerId);
  * @route GET /api/campaigns/pending
  * @desc Get all pending campaigns for review
  * @access admin
+ * NOTE: Must be before /:campaignId wildcard to avoid route shadowing
  */
 router.get('/pending', requireRole('admin'), getPendingCampaigns);
+
+/**
+ * @route GET /api/campaigns/:campaignId
+ * @desc Get a single campaign by ID
+ * @access Public (no auth required)
+ * NOTE: Wildcard — must be after all specific /campaigns/* routes
+ */
+router.get('/:campaignId', getCampaignById);
 
 /**
  * @route PATCH /api/campaigns/:campaignId/review
@@ -92,5 +97,13 @@ router.patch('/:campaignId/review', requireRole('admin'), reviewCampaign);
  * @body { walletAddress, amountEth, txHash }
  */
 router.post('/:campaignId/contribution', requireRole('contributor'), recordContribution);
+
+/**
+ * @route POST /api/campaigns/:campaignId/withdrawal
+ * @desc Record an on-chain withdrawal in MongoDB for dashboard history
+ * @access projectOwner
+ * @body { amountEth, txHash, blockNumber }
+ */
+router.post('/:campaignId/withdrawal', requireRole('projectOwner'), recordWithdrawal);
 
 export default router;

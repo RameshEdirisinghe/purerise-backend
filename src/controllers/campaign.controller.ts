@@ -152,6 +152,7 @@ export const getMyCampaigns = async (
         endDate: c.endDate,
         milestones: c.milestones,
         contributions,
+        withdrawals: c.withdrawals || [],
         contributorCount: c.contributions.length,
       };
     }));
@@ -361,6 +362,7 @@ export const getCampaignById = async (
       coverImage: coverImageUrl,
       media: mediaUrls,
       contributions,
+      withdrawals: campaignObj.withdrawals || [],
       owner: campaign.ownerId
         ? {
             name: (campaign.ownerId as any).name,
@@ -489,6 +491,60 @@ export const getMyContributions = async (
         contributions: result,
         totalAmountEth: totalAmountEth.toFixed(6),
         totalCampaigns: campaigns.length,
+      })
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+/**
+ * POST /api/campaigns/:campaignId/withdrawal
+ * Records an on-chain withdrawal in MongoDB so dashboard can show history
+ * without querying the blockchain each time.
+ */
+export const recordWithdrawal = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { campaignId } = req.params;
+    const { amountEth, txHash, blockNumber } = req.body as {
+      amountEth:   string;
+      txHash:      string;
+      blockNumber?: number;
+    };
+
+    if (!amountEth || !txHash) {
+      throw new ApiError(400, 'amountEth and txHash are required');
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(campaignId as string)) {
+      throw new ApiError(400, 'Invalid campaign ID');
+    }
+
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) throw new ApiError(404, 'Campaign not found');
+
+    // Prevent duplicate recording (same txHash)
+    const alreadyRecorded = campaign.withdrawals.some(w => w.txHash === txHash);
+    if (alreadyRecorded) {
+      res.status(200).json(new ApiResponse(200, 'Withdrawal already recorded', {}));
+      return;
+    }
+
+    campaign.withdrawals.push({
+      amountEth,
+      txHash,
+      blockNumber,
+      timestamp: new Date(),
+    });
+
+    await campaign.save();
+
+    res.status(201).json(
+      new ApiResponse(201, 'Withdrawal recorded successfully', {
+        withdrawal: { amountEth, txHash, timestamp: new Date() },
       })
     );
   } catch (error) {
