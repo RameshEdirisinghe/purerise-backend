@@ -15,6 +15,7 @@ export interface IUser extends Document {
   isWalletConnected: boolean;
   accountStatus: AccountStatus;
   refreshToken: string | null;
+  savedCampaigns: mongoose.Types.ObjectId[];
   createdAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
@@ -75,6 +76,10 @@ const userSchema = new Schema<IUser>(
       default: null,
       select: false,
     },
+    savedCampaigns: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Campaign',
+    }],
   },
   { timestamps: true }
 );

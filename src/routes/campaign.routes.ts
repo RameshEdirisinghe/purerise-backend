@@ -11,6 +11,8 @@ import {
   recordContribution,
   getMyContributions,
   recordWithdrawal,
+  getSavedCampaigns,
+  toggleSavedCampaign,
 } from '../controllers/campaign.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
@@ -60,6 +62,14 @@ router.get('/my-campaigns', requireRole('projectOwner'), getMyCampaigns);
 router.get('/my-contributions', requireRole('contributor'), getMyContributions);
 
 /**
+ * @route GET /api/campaigns/saved-campaigns
+ * @desc Get all saved campaigns for the authenticated user
+ * @access contributor
+ * NOTE: Must be before /:campaignId wildcard to avoid route shadowing
+ */
+router.get('/saved-campaigns', requireRole('contributor'), getSavedCampaigns);
+
+/**
  * @route GET /api/campaigns/owner/:ownerId
  * @desc Get campaigns by owner ID (Admin access)
  * @access admin
@@ -105,5 +115,12 @@ router.post('/:campaignId/contribution', requireRole('contributor'), recordContr
  * @body { amountEth, txHash, blockNumber }
  */
 router.post('/:campaignId/withdrawal', requireRole('projectOwner'), recordWithdrawal);
+
+/**
+ * @route POST /api/campaigns/:campaignId/save
+ * @desc Toggle save status of a campaign for the authenticated user
+ * @access contributor
+ */
+router.post('/:campaignId/save', requireRole('contributor'), toggleSavedCampaign);
 
 export default router;

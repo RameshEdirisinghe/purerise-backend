@@ -551,3 +551,69 @@ export const recordWithdrawal = async (
     next(error);
   }
 };
+
+/**
+ * GET /api/campaigns/saved-campaigns
+ * Get the currently authenticated user's saved campaign IDs.
+ */
+export const getSavedCampaigns = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) throw new ApiError(401, 'Unauthorized');
+
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    res.status(200).json(
+      new ApiResponse(200, 'Saved campaigns retrieved', user.savedCampaigns || [])
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/campaigns/:campaignId/save
+ * Toggle save status of a campaign for the authenticated user.
+ */
+export const toggleSavedCampaign = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { campaignId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) throw new ApiError(401, 'Unauthorized');
+    if (!mongoose.Types.ObjectId.isValid(campaignId as string)) {
+      throw new ApiError(400, 'Invalid campaign ID');
+    }
+
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    const objId = new mongoose.Types.ObjectId(campaignId as string);
+    const existingIndex = user.savedCampaigns.findIndex(id => id.equals(objId));
+
+    if (existingIndex > -1) {
+      // Remove it
+      user.savedCampaigns.splice(existingIndex, 1);
+    } else {
+      // Add it
+      user.savedCampaigns.push(objId);
+    }
+
+    await user.save();
+
+    res.status(200).json(
+      new ApiResponse(200, 'Saved campaigns updated', user.savedCampaigns)
+    );
+  } catch (error) {
+    next(error);
+  }
+};
