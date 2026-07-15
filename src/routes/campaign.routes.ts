@@ -24,12 +24,7 @@ const router = Router();
  */
 router.get('/active', getActiveCampaigns);
 
-/**
- * @route GET /api/campaigns/:campaignId
- * @desc Get a single campaign by ID
- * @access Public (no auth required)
- */
-router.get('/:campaignId', getCampaignById);
+
 
 // All routes below require authentication
 router.use(authMiddleware);
@@ -54,6 +49,13 @@ router.post('/media-upload', requireRole('projectOwner'), upload.single('file'),
  * @access projectOwner
  */
 router.get('/my-campaigns', requireRole('projectOwner'), getMyCampaigns);
+
+/**
+ * @route GET /api/campaigns/:campaignId
+ * @desc Get a single campaign by ID
+ * @access Public (no auth required)
+ */
+router.get('/:campaignId', getCampaignById);
 
 /**
  * @route GET /api/campaigns/my-contributions
