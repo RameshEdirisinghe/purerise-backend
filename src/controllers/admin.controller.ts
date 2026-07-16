@@ -3,6 +3,7 @@ import CampaignOwnerRequest from '../models/CampaignOwnerRequest';
 import User from '../models/user.model';
 import { ApiResponse, ApiError } from '../utils/apiResponse';
 import { supabase } from '../config/supabase';
+import { getSignedUrl } from '../utils/uploadImage';
 import {
   sendCampaignOwnerApprovedEmail,
   sendCampaignOwnerRejectedEmail,
@@ -136,8 +137,21 @@ export const getAllUsers = async (
       .select('name email role accountStatus createdAt profileImage')
       .sort({ createdAt: -1 });
 
+    // Resolve signed URLs for profile images (private bucket)
+    const usersWithSignedImages = await Promise.all(
+      users.map(async (u) => {
+        const userObj = u.toObject();
+        return {
+          ...userObj,
+          profileImage: userObj.profileImage
+            ? await getSignedUrl('kyc-documents', userObj.profileImage)
+            : null,
+        };
+      })
+    );
+
     res.status(200).json(
-      new ApiResponse(200, 'Users fetched successfully', users)
+      new ApiResponse(200, 'Users fetched successfully', usersWithSignedImages)
     );
   } catch (error) {
     next(error);

@@ -146,9 +146,10 @@ export const login = async (
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
-    // Profile Image
-    const profileImageUrl = user.profileImage 
-      ? await getSignedUrl('kyc-documents', user.profileImage)
+    // Profile Image — guard against corrupted DB entries (full signed URLs stored as path)
+    const rawImagePath = user.profileImage?.startsWith('http') ? null : user.profileImage;
+    const profileImageUrl = rawImagePath
+      ? await getSignedUrl('kyc-documents', rawImagePath)
       : null;
 
     res.status(200).json(
@@ -204,9 +205,10 @@ export const refresh = async (
     user.refreshToken = newRefreshToken;
     await user.save({ validateBeforeSave: false });
 
-    // Profile Image
-    const profileImageUrl = user.profileImage 
-      ? await getSignedUrl('kyc-documents', user.profileImage)
+    // Profile Image — guard against corrupted DB entries (full signed URLs stored as path)
+    const rawImagePath = user.profileImage?.startsWith('http') ? null : user.profileImage;
+    const profileImageUrl = rawImagePath
+      ? await getSignedUrl('kyc-documents', rawImagePath)
       : null;
 
     res.status(200).json(new ApiResponse(200, 'Token refreshed', {
@@ -263,8 +265,10 @@ export const getMe = async (
       throw new ApiError(404, 'User not found');
     }
 
-    const profileImageUrl = user.profileImage 
-      ? await getSignedUrl('kyc-documents', user.profileImage)
+    // Profile Image — guard against corrupted DB entries (full signed URLs stored as path)
+    const rawImagePath = user.profileImage?.startsWith('http') ? null : user.profileImage;
+    const profileImageUrl = rawImagePath
+      ? await getSignedUrl('kyc-documents', rawImagePath)
       : null;
 
     res.status(200).json(
@@ -303,12 +307,17 @@ export const updateProfile = async (
     }
 
     if (name) user.name = name;
-    if (profileImage) user.profileImage = profileImage;
+    // Only accept raw storage paths — reject full signed URLs to prevent DB corruption
+    if (profileImage && !profileImage.startsWith('http')) {
+      user.profileImage = profileImage;
+    }
 
     await user.save({ validateBeforeSave: false });
 
-    const profileImageUrl = user.profileImage 
-      ? await getSignedUrl('kyc-documents', user.profileImage)
+    // Profile Image — guard against corrupted DB entries (full signed URLs stored as path)
+    const rawImagePath = user.profileImage?.startsWith('http') ? null : user.profileImage;
+    const profileImageUrl = rawImagePath
+      ? await getSignedUrl('kyc-documents', rawImagePath)
       : null;
 
     res.status(200).json(
