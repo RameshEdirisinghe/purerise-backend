@@ -4,7 +4,7 @@ import User from '../src/models/user.model';
 import * as tokenUtils from '../src/utils/generateTokens';
 import { ApiError } from '../src/utils/apiResponse';
 
-// Mock dependencies
+
 jest.mock('../src/models/user.model');
 jest.mock('../src/utils/generateTokens');
 
@@ -45,7 +45,7 @@ describe('Auth Controller', () => {
 
       (User.findOne as jest.Mock).mockResolvedValue(null);
       (User.create as jest.Mock).mockResolvedValue(mockUser);
-      jest.spyOn(tokenUtils, 'setTokenCookies').mockReturnValue({ refreshToken: 'mockToken' });
+      jest.spyOn(tokenUtils, 'setTokenCookies').mockReturnValue({ accessToken: 'mockAccessToken', refreshToken: 'mockToken' });
 
       // Act
       await register(mockReq as Request, mockRes as Response, mockNext);
@@ -104,7 +104,7 @@ describe('Auth Controller', () => {
 
       (User.findOne as jest.Mock).mockResolvedValue(null);
       (User.create as jest.Mock).mockResolvedValue(mockUser);
-      jest.spyOn(tokenUtils, 'setTokenCookies').mockReturnValue({ refreshToken: 'mockToken' });
+      jest.spyOn(tokenUtils, 'setTokenCookies').mockReturnValue({ accessToken: 'mockAccessToken', refreshToken: 'mockToken' });
 
       // Act
       await register(mockReq as Request, mockRes as Response, mockNext);
@@ -139,7 +139,7 @@ describe('Auth Controller', () => {
         select: jest.fn().mockResolvedValue(mockUser),
       };
       (User.findOne as jest.Mock).mockReturnValue(mockQuery);
-      jest.spyOn(tokenUtils, 'setTokenCookies').mockReturnValue({ refreshToken: 'mockToken' });
+      jest.spyOn(tokenUtils, 'setTokenCookies').mockReturnValue({ accessToken: 'mockAccessToken', refreshToken: 'mockToken' });
 
       // Act
       await login(mockReq as Request, mockRes as Response, mockNext);
