@@ -4,7 +4,6 @@ import User from '../src/models/user.model';
 import * as tokenUtils from '../src/utils/generateTokens';
 import { ApiError } from '../src/utils/apiResponse';
 
-
 jest.mock('../src/models/user.model');
 jest.mock('../src/utils/generateTokens');
 
@@ -26,7 +25,6 @@ describe('Auth Controller', () => {
 
   describe('POST /api/auth/register (Critical)', () => {
     it('should create a user and return 201 on valid input', async () => {
-      // Arrange
       mockReq.body = {
         name: 'Test User',
         email: 'test@example.com',
@@ -47,10 +45,8 @@ describe('Auth Controller', () => {
       (User.create as jest.Mock).mockResolvedValue(mockUser);
       jest.spyOn(tokenUtils, 'setTokenCookies').mockReturnValue({ accessToken: 'mockAccessToken', refreshToken: 'mockToken' });
 
-      // Act
       await register(mockReq as Request, mockRes as Response, mockNext);
 
-      // Assert
       expect(User.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
       expect(User.create).toHaveBeenCalled();
       expect(tokenUtils.setTokenCookies).toHaveBeenCalled();
@@ -64,7 +60,6 @@ describe('Auth Controller', () => {
     });
 
     it('should fail if email is already in use (Critical)', async () => {
-      // Arrange
       mockReq.body = {
         name: 'Test User',
         email: 'existing@example.com',
@@ -74,10 +69,8 @@ describe('Auth Controller', () => {
 
       (User.findOne as jest.Mock).mockResolvedValue({ _id: 'existingId' });
 
-      // Act
       await register(mockReq as Request, mockRes as Response, mockNext);
 
-      // Assert
       expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
       const errorArg = mockNext.mock.calls[0][0];
       expect(errorArg.statusCode).toBe(409);
@@ -85,7 +78,7 @@ describe('Auth Controller', () => {
     });
 
     it('should set accountStatus to pending for projectOwner', async () => {
-      // Arrange
+
       mockReq.body = {
         name: 'Project Owner',
         email: 'owner@example.com',
@@ -106,10 +99,8 @@ describe('Auth Controller', () => {
       (User.create as jest.Mock).mockResolvedValue(mockUser);
       jest.spyOn(tokenUtils, 'setTokenCookies').mockReturnValue({ accessToken: 'mockAccessToken', refreshToken: 'mockToken' });
 
-      // Act
       await register(mockReq as Request, mockRes as Response, mockNext);
 
-      // Assert
       expect(User.create).toHaveBeenCalledWith(expect.objectContaining({
         accountStatus: 'pending'
       }));
@@ -118,7 +109,6 @@ describe('Auth Controller', () => {
 
   describe('POST /api/auth/login (Critical)', () => {
     it('should return a token for valid credentials', async () => {
-      // Arrange
       mockReq.body = {
         email: 'test@example.com',
         password: 'Password123!',
@@ -134,17 +124,14 @@ describe('Auth Controller', () => {
         save: jest.fn().mockResolvedValue(true),
       };
 
-      // Mock chainable mongoose queries
       const mockQuery = {
         select: jest.fn().mockResolvedValue(mockUser),
       };
       (User.findOne as jest.Mock).mockReturnValue(mockQuery);
       jest.spyOn(tokenUtils, 'setTokenCookies').mockReturnValue({ accessToken: 'mockAccessToken', refreshToken: 'mockToken' });
 
-      // Act
       await login(mockReq as Request, mockRes as Response, mockNext);
 
-      // Assert
       expect(User.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
       expect(mockUser.comparePassword).toHaveBeenCalledWith('Password123!');
       expect(tokenUtils.setTokenCookies).toHaveBeenCalled();
@@ -158,21 +145,18 @@ describe('Auth Controller', () => {
     });
 
     it('should fail with invalid credentials', async () => {
-      // Arrange
       mockReq.body = {
         email: 'test@example.com',
         password: 'WrongPassword!',
       };
 
       const mockQuery = {
-        select: jest.fn().mockResolvedValue(null), // User not found
+        select: jest.fn().mockResolvedValue(null),
       };
       (User.findOne as jest.Mock).mockReturnValue(mockQuery);
 
-      // Act
       await login(mockReq as Request, mockRes as Response, mockNext);
 
-      // Assert
       expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
       expect(mockNext.mock.calls[0][0].statusCode).toBe(401);
     });
