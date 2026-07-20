@@ -77,7 +77,6 @@ export const registerAdmin = async (
   try {
     const { name, email, password, adminKey } = req.body;
 
-    // Simple secret check for creating admin via API
     if (adminKey !== 'PR_ADMIN_2024_SECRET') {
       throw new ApiError(403, 'Unauthorized. Invalid admin creation key.');
     }
