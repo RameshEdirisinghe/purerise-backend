@@ -20,27 +20,22 @@ describe('Auth Middleware (High)', () => {
   });
 
   it('should call next if valid access token is present', () => {
-    // Arrange
     mockReq.cookies = { accessToken: 'validToken' };
     (tokenService.verifyAccessToken as jest.Mock).mockReturnValue({
       userId: 'user123',
       role: 'contributor',
     });
 
-    // Act
     authMiddleware(mockReq as Request, mockRes as Response, mockNext);
 
-    // Assert
     expect(tokenService.verifyAccessToken).toHaveBeenCalledWith('validToken');
     expect(mockReq.user).toEqual({ userId: 'user123', role: 'contributor' });
-    expect(mockNext).toHaveBeenCalledWith(); // Called without arguments (success)
+    expect(mockNext).toHaveBeenCalledWith();
   });
 
   it('should fail if access token is missing', () => {
-    // Act
     authMiddleware(mockReq as Request, mockRes as Response, mockNext);
 
-    // Assert
     expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
     const errorArg = mockNext.mock.calls[0][0];
     expect(errorArg.statusCode).toBe(401);
@@ -48,16 +43,13 @@ describe('Auth Middleware (High)', () => {
   });
 
   it('should fail if access token is invalid', () => {
-    // Arrange
     mockReq.cookies = { accessToken: 'invalidToken' };
     (tokenService.verifyAccessToken as jest.Mock).mockImplementation(() => {
       throw new Error('Invalid signature');
     });
 
-    // Act
     authMiddleware(mockReq as Request, mockRes as Response, mockNext);
 
-    // Assert
     expect(mockNext).toHaveBeenCalledWith(expect.any(ApiError));
     const errorArg = mockNext.mock.calls[0][0];
     expect(errorArg.statusCode).toBe(401);
