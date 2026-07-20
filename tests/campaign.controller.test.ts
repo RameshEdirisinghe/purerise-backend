@@ -17,8 +17,6 @@ jest.mock('../src/models/user.model');
 jest.mock('../src/utils/uploadImage');
 jest.mock('../src/services/email.service');
 
-// ─── Shared helpers ────────────────────────────────────────────────────────
-
 const validCampaignBody = {
   title: 'Clean Water Initiative',
   summary: 'Bringing clean water to rural communities.',
@@ -42,8 +40,6 @@ const mockProjectOwner = {
   accountStatus: 'active',
 };
 
-// ──────────────────────────────────────────────────────────────────────────
-
 describe('Campaign Controller', () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
@@ -58,8 +54,6 @@ describe('Campaign Controller', () => {
     mockNext = jest.fn();
     jest.clearAllMocks();
   });
-
-  // ── POST /api/campaigns/create ──────────────────────────────────────────
 
   describe('POST /api/campaigns/create (Critical)', () => {
     it('should create a campaign and return 201 for an active projectOwner', async () => {
@@ -198,8 +192,6 @@ describe('Campaign Controller', () => {
     });
   });
 
-  // ── PATCH /api/campaigns/:campaignId/review ─────────────────────────────
-
   describe('PATCH /api/campaigns/:campaignId/review (Critical)', () => {
     const campaignId = new mongoose.Types.ObjectId().toString();
 
@@ -294,8 +286,6 @@ describe('Campaign Controller', () => {
     });
   });
 
-  // ── GET /api/campaigns/:campaignId ─────────────────────────────────────
-
   describe('GET /api/campaigns/:campaignId (High)', () => {
     const validId = new mongoose.Types.ObjectId().toString();
 
@@ -376,8 +366,6 @@ describe('Campaign Controller', () => {
       expect(err.message).toBe('Campaign not found');
     });
   });
-
-  // ── GET /api/campaigns/my-campaigns ────────────────────────────────────
 
   describe('GET /api/campaigns/my-campaigns (High)', () => {
     it('should return formatted campaigns for the authenticated owner', async () => {
