@@ -25,13 +25,12 @@ export const setTokenCookies = (res: Response, payload: TokenPayload): { accessT
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
 
-  // Access token: 15 minutes (short-lived for security)
+
   res.cookie('accessToken', accessToken, {
     ...COOKIE_DEFAULTS,
     maxAge: 15 * 60 * 1000,
   });
 
-  // Refresh token: 7 days (longer-lived, used to get new access token)
   res.cookie('refreshToken', refreshToken, {
     ...COOKIE_DEFAULTS,
     maxAge: 7 * 24 * 60 * 60 * 1000,

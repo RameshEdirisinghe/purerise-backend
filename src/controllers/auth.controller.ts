@@ -109,9 +109,7 @@ export const registerAdmin = async (
   }
 };
 
-// ─────────────────────────────────────────────
-// POST /api/auth/login
-// ─────────────────────────────────────────────
+
 export const login = async (
   req: Request,
   res: Response,
@@ -126,7 +124,6 @@ export const login = async (
 
     const { email, password } = parsed.data;
 
-    // Fetch user with password field (excluded by default)
     const user = await User.findOne({ email }).select('+password +refreshToken');
     if (!user) {
       throw new ApiError(401, 'Invalid email or password');
